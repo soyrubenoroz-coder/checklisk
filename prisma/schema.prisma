@@ -1,0 +1,61 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String?   @unique
+  password       String?
+  role           String    @default("MEMBER")
+  avatarUrl      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  assignments    TaskAssignment[] @relation("AssignedTasks")
+  taskLogs       TaskLog[]        @relation("CompletedTasks")
+}
+
+model Task {
+  id              String   @id @default(cuid())
+  title           String
+  category        String?
+  durationMinutes Int?
+  isPerpetual     Boolean  @default(false)
+  endDate         DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  assignments     TaskAssignment[] @relation("TaskToAssignment")
+}
+
+model TaskAssignment {
+  id           String   @id @default(cuid())
+  task         Task     @relation("TaskToAssignment", fields: [taskId], references: [id], onDelete: Cascade)
+  taskId       String
+  assignedTo   User     @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: Cascade)
+  assignedToId String
+  daysOfWeek   String   // JSON string representing array of numbers mapping to 0-6 (Sun-Sat)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  logs         TaskLog[] @relation("AssignmentToLog")
+}
+
+model TaskLog {
+  id             String         @id @default(cuid())
+  assignment     TaskAssignment @relation("AssignmentToLog", fields: [assignmentId], references: [id], onDelete: Cascade)
+  assignmentId   String
+  completedBy    User           @relation("CompletedTasks", fields: [completedById], references: [id], onDelete: Cascade)
+  completedById  String
+  date           String         // Format: YYYY-MM-DD
+  status         String         @default("COMPLETED")
+  createdAt      DateTime       @default(now())
+  
+  @@unique([assignmentId, date])
+}
