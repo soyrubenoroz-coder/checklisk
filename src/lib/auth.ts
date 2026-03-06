@@ -42,26 +42,21 @@ export const authOptions: NextAuthOptions = {
         })
     ],
     callbacks: {
-        async jwt({ token, user, trigger, session }) {
-            console.log("JWT Callback Triggered. User?", !!user, "Token ID before:", token.id, "Token sub:", token.sub);
+        async jwt({ token, user }) {
             if (user) {
                 token.role = user.role;
                 token.id = user.id;
             }
-            // Fallback for ID if token.id is missing but token.sub is present (NextAuth default)
             if (!token.id && token.sub) {
                 token.id = token.sub;
             }
-            console.log("JWT Token returned ID:", token.id);
             return token;
         },
         async session({ session, token }) {
-            console.log("Session Callback Triggered. Token ID:", token.id, "Token sub:", token.sub);
             if (token && session.user) {
                 session.user.role = token.role as string;
                 session.user.id = (token.id as string) || (token.sub as string);
             }
-            console.log("Session User constructed with ID:", session.user?.id);
             return session;
         }
     },
