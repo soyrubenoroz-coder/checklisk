@@ -12,9 +12,19 @@ const AVATAR_PRESETS = [
 ];
 
 function getAvatarUrl(name: string, gender: string) {
-    const preset = AVATAR_PRESETS.find(p => p.id === gender);
-    const seed = `${name?.trim() || 'User'}-${preset?.seed || 'ManAdult'}`;
-    return `https://api.dicebear.com/7.x/notionists/svg?seed=${seed}`;
+    const safeName = encodeURIComponent(name?.trim() || 'User');
+    // Use different DiceBear styles per gender for clear visual distinction
+    switch (gender) {
+        case 'female':
+            return `https://api.dicebear.com/7.x/avataaars/svg?seed=${safeName}-woman&top=longHair&accessories=prescription02&clotheColor=ff488e&hairColor=4a312c`;
+        case 'girl':
+            return `https://api.dicebear.com/7.x/avataaars/svg?seed=${safeName}-girl&top=longHair&accessories=round&clotheColor=ff6b9d&hairColor=2c1b18`;
+        case 'boy':
+            return `https://api.dicebear.com/7.x/avataaars/svg?seed=${safeName}-boy&top=shortCurly&clotheColor=3c4f76&facialHair=blank&hairColor=724133`;
+        case 'male':
+        default:
+            return `https://api.dicebear.com/7.x/avataaars/svg?seed=${safeName}-man&top=shortFlat&facialHair=beardLight&clotheColor=262e33&hairColor=2c1b18`;
+    }
 }
 
 export default function FamilyHubPage() {
@@ -87,6 +97,7 @@ export default function FamilyHubPage() {
 
     // --- Drag & Drop ---
     const handleDragStart = (idx: number) => {
+        if (isModalOpen) return;
         dragItemRef.current = idx;
         setDragIdx(idx);
     };
@@ -123,12 +134,14 @@ export default function FamilyHubPage() {
     const memberRefs = useRef<(HTMLDivElement | null)[]>([]);
 
     const handleTouchStart = (idx: number, e: React.TouchEvent) => {
+        if (isModalOpen) return;
         touchIdx.current = idx;
         touchStartY.current = e.touches[0].clientY;
         setDragIdx(idx);
     };
 
     const handleTouchMove = (e: React.TouchEvent) => {
+        if (isModalOpen) return;
         if (touchIdx.current === null) return;
         const currentY = e.touches[0].clientY;
 

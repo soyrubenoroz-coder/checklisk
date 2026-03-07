@@ -38,7 +38,6 @@ export async function addFamilyMember(data: {
         const maxOrder = await prisma.user.aggregate({ _max: { displayOrder: true } });
         const nextOrder = (maxOrder._max.displayOrder ?? -1) + 1;
 
-        const avatarSeed = name.trim();
         const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
 
         const newMember = await prisma.user.create({
@@ -48,7 +47,6 @@ export async function addFamilyMember(data: {
                 role,
                 gender,
                 password: hashedPassword,
-                avatarUrl: `https://api.dicebear.com/7.x/notionists/svg?seed=${avatarSeed}`,
                 displayOrder: nextOrder,
             }
         });
