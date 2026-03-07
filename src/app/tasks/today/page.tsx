@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { getFamilyMembers } from "@/app/actions/family";
@@ -16,9 +16,30 @@ export default function TodayTasksPage() {
     const [tasks, setTasks] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const now = useMemo(() => new Date(), []);
+    const todayStr = useMemo(() => `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`, [now]);
     const [selectedDateStr, setSelectedDateStr] = useState(todayStr);
+
+    // Refs for scrolling
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const todayRef = useRef<HTMLButtonElement>(null);
+
+    const scrollToToday = () => {
+        setSelectedDateStr(todayStr);
+        if (todayRef.current && scrollContainerRef.current) {
+            const container = scrollContainerRef.current;
+            const element = todayRef.current;
+            const scrollLeft = element.offsetLeft - (container.offsetWidth / 2) + (element.offsetWidth / 2);
+            container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+        }
+    };
+
+    // Auto-scroll to today on mount
+    useEffect(() => {
+        if (!isLoading && members.length > 0) {
+            setTimeout(scrollToToday, 100);
+        }
+    }, [isLoading, members.length]);
 
     // Generate date window (15 days back, 15 days forward)
     const [dateList, setDateList] = useState<{ dateStr: string, label: string, dayNum: string }[]>([]);
@@ -111,10 +132,10 @@ export default function TodayTasksPage() {
                         </h2>
                         {selectedDateStr !== todayStr && (
                             <button
-                                onClick={() => setSelectedDateStr(todayStr)}
-                                className="text-[10px] font-bold text-primary flex items-center gap-1 mt-0.5 uppercase tracking-wider"
+                                onClick={scrollToToday}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-primary text-slate-900 rounded-full text-[10px] font-bold mt-1 shadow-sm transition-all hover:scale-105 active:scale-95 uppercase tracking-wider"
                             >
-                                <span className="material-symbols-outlined text-[12px]">today</span>
+                                <span className="material-symbols-outlined text-[14px]">today</span>
                                 Volver a Hoy
                             </button>
                         )}
@@ -154,7 +175,10 @@ export default function TodayTasksPage() {
                 </div>
 
                 {/* Date Calendar Slider */}
-                <div className="px-4 flex gap-2 overflow-x-auto pb-4 pt-1 scrollbar-none snap-x">
+                <div
+                    ref={scrollContainerRef}
+                    className="px-4 flex gap-2 overflow-x-auto pb-4 pt-1 scrollbar-none snap-x"
+                >
                     {dateList.map((d, index) => {
                         const isSelected = selectedDateStr === d.dateStr;
                         const isToday = todayStr === d.dateStr;
@@ -163,6 +187,7 @@ export default function TodayTasksPage() {
                         return (
                             <button
                                 key={index}
+                                ref={isToday ? todayRef : null}
                                 onClick={() => setSelectedDateStr(d.dateStr)}
                                 className={`flex flex-col items-center justify-center shrink-0 snap-center rounded-2xl transition-all h-16 w-12 border ${isSelected
                                     ? 'bg-primary border-primary shadow-md shadow-primary/20 scale-110 mx-1 z-10'
