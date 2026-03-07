@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { getFamilyMembers, addFamilyMember, updateFamilyMember, deleteFamilyMember, reorderMember, getFamilyStats } from "@/app/actions/family";
+import { getFamilyMembers, addFamilyMember, updateFamilyMember, deleteFamilyMember, reorderMembers, getFamilyStats } from "@/app/actions/family";
 
 const AVATAR_PRESETS = [
     { id: 'male', label: 'Hombre', icon: '👨', seed: 'ManAdult' },
@@ -25,6 +25,12 @@ export default function FamilyHubPage() {
     const [members, setMembers] = useState<any[]>([]);
     const [familyStats, setFamilyStats] = useState({ progressPercent: 0, currentStreak: 0, totalWeeklyCompleted: 0 });
     const [isLoading, setIsLoading] = useState(true);
+
+    // Drag state
+    const [dragIdx, setDragIdx] = useState<number | null>(null);
+    const [overIdx, setOverIdx] = useState<number | null>(null);
+    const dragItemRef = useRef<number | null>(null);
+    const dragOverRef = useRef<number | null>(null);
 
     useEffect(() => { loadData(); }, []);
 
@@ -79,9 +85,84 @@ export default function FamilyHubPage() {
         }
     };
 
-    const handleReorder = async (id: string, direction: 'up' | 'down') => {
-        await reorderMember(id, direction);
-        loadData();
+    // --- Drag & Drop ---
+    const handleDragStart = (idx: number) => {
+        dragItemRef.current = idx;
+        setDragIdx(idx);
+    };
+
+    const handleDragEnter = (idx: number) => {
+        dragOverRef.current = idx;
+        setOverIdx(idx);
+    };
+
+    const handleDragEnd = async () => {
+        const from = dragItemRef.current;
+        const to = dragOverRef.current;
+        setDragIdx(null);
+        setOverIdx(null);
+        dragItemRef.current = null;
+        dragOverRef.current = null;
+
+        if (from === null || to === null || from === to) return;
+
+        // Reorder locally for instant feedback
+        const reordered = [...members];
+        const [moved] = reordered.splice(from, 1);
+        reordered.splice(to, 0, moved);
+        setMembers(reordered);
+
+        // Persist
+        const orderedIds = reordered.map(m => m.id);
+        await reorderMembers(orderedIds);
+    };
+
+    // --- Touch Drag (mobile) ---
+    const touchStartY = useRef(0);
+    const touchIdx = useRef<number | null>(null);
+    const memberRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+    const handleTouchStart = (idx: number, e: React.TouchEvent) => {
+        touchIdx.current = idx;
+        touchStartY.current = e.touches[0].clientY;
+        setDragIdx(idx);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (touchIdx.current === null) return;
+        const currentY = e.touches[0].clientY;
+
+        // Find which member card the touch is over
+        for (let i = 0; i < memberRefs.current.length; i++) {
+            const el = memberRefs.current[i];
+            if (el) {
+                const rect = el.getBoundingClientRect();
+                if (currentY >= rect.top && currentY <= rect.bottom) {
+                    setOverIdx(i);
+                    dragOverRef.current = i;
+                    break;
+                }
+            }
+        }
+    };
+
+    const handleTouchEnd = async () => {
+        const from = touchIdx.current;
+        const to = dragOverRef.current;
+        setDragIdx(null);
+        setOverIdx(null);
+        touchIdx.current = null;
+        dragOverRef.current = null;
+
+        if (from === null || to === null || from === to) return;
+
+        const reordered = [...members];
+        const [moved] = reordered.splice(from, 1);
+        reordered.splice(to, 0, moved);
+        setMembers(reordered);
+
+        const orderedIds = reordered.map(m => m.id);
+        await reorderMembers(orderedIds);
     };
 
     return (
@@ -125,8 +206,15 @@ export default function FamilyHubPage() {
                     </button>
                 </div>
 
+                {/* Drag hint */}
+                {members.length > 1 && (
+                    <p className="text-xs text-slate-400 text-center -mt-2">
+                        <span className="material-symbols-outlined text-xs align-middle">drag_indicator</span> Arrastra para reordenar
+                    </p>
+                )}
+
                 {/* Member Cards */}
-                <div className="space-y-3">
+                <div className="space-y-3" onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
                     {isLoading ? (
                         <div className="text-center py-10 bg-white/50 dark:bg-slate-800/20 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
                             <p className="text-slate-500 text-sm font-medium animate-pulse">Cargando familia...</p>
@@ -138,9 +226,28 @@ export default function FamilyHubPage() {
                     ) : (
                         members.map((member, idx) => {
                             const preset = AVATAR_PRESETS.find(p => p.id === member.gender);
+                            const isDragging = dragIdx === idx;
+                            const isOver = overIdx === idx && dragIdx !== null && dragIdx !== idx;
                             return (
-                                <div key={member.id} className="bg-white dark:bg-slate-800/50 p-4 rounded-xl border border-primary/5 shadow-sm">
+                                <div
+                                    key={member.id}
+                                    ref={el => { memberRefs.current[idx] = el; }}
+                                    draggable
+                                    onDragStart={() => handleDragStart(idx)}
+                                    onDragEnter={() => handleDragEnter(idx)}
+                                    onDragEnd={handleDragEnd}
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onTouchStart={(e) => handleTouchStart(idx, e)}
+                                    className={`bg-white dark:bg-slate-800/50 p-4 rounded-xl border shadow-sm cursor-grab active:cursor-grabbing transition-all duration-150 select-none
+                                        ${isDragging ? 'opacity-50 scale-95 border-primary/40' : 'border-primary/5'}
+                                        ${isOver ? 'border-primary border-2 -translate-y-1 shadow-lg shadow-primary/10' : ''}
+                                    `}
+                                >
                                     <div className="flex items-center gap-3">
+                                        {/* Drag Handle */}
+                                        <div className="text-slate-300 dark:text-slate-600 shrink-0 touch-none">
+                                            <span className="material-symbols-outlined text-xl">drag_indicator</span>
+                                        </div>
                                         {/* Avatar */}
                                         <div className="relative shrink-0">
                                             <img
@@ -159,25 +266,10 @@ export default function FamilyHubPage() {
                                             </p>
                                         </div>
                                         {/* Actions */}
-                                        <div className="flex items-center gap-1 shrink-0">
-                                            {/* Reorder */}
-                                            <div className="flex flex-col">
-                                                {idx > 0 && (
-                                                    <button onClick={() => handleReorder(member.id, 'up')} className="text-slate-400 hover:text-primary p-0.5">
-                                                        <span className="material-symbols-outlined text-[18px]">keyboard_arrow_up</span>
-                                                    </button>
-                                                )}
-                                                {idx < members.length - 1 && (
-                                                    <button onClick={() => handleReorder(member.id, 'down')} className="text-slate-400 hover:text-primary p-0.5">
-                                                        <span className="material-symbols-outlined text-[18px]">keyboard_arrow_down</span>
-                                                    </button>
-                                                )}
-                                            </div>
-                                            {/* Edit */}
+                                        <div className="flex items-center gap-0.5 shrink-0">
                                             <button onClick={() => openEditModal(member)} className="text-slate-400 hover:text-blue-500 p-1.5">
                                                 <span className="material-symbols-outlined text-[20px]">edit</span>
                                             </button>
-                                            {/* Delete */}
                                             {session?.user?.id !== member.id && (
                                                 <button onClick={() => handleDelete(member.id, member.name)} className="text-slate-400 hover:text-red-500 p-1.5">
                                                     <span className="material-symbols-outlined text-[20px]">delete</span>
@@ -212,7 +304,7 @@ export default function FamilyHubPage() {
             {/* Add/Edit Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800">
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center p-5 border-b border-slate-100 dark:border-slate-800">
                             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                                 {editingMember ? 'Editar Miembro' : 'Añadir Miembro'}
@@ -279,7 +371,7 @@ export default function FamilyHubPage() {
                                 </div>
                             </div>
 
-                            {/* Email & Password (for login) */}
+                            {/* Email & Password */}
                             <div className="space-y-1.5">
                                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                                     Correo {form.role === 'ADMIN' ? '(para iniciar sesión)' : '(opcional)'}

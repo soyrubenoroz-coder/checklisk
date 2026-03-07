@@ -91,23 +91,12 @@ export async function updateFamilyMember(data: {
     }
 }
 
-export async function reorderMember(memberId: string, direction: 'up' | 'down') {
+export async function reorderMembers(orderedIds: string[]) {
     try {
-        const members = await prisma.user.findMany({ orderBy: { displayOrder: 'asc' } });
-        const idx = members.findIndex(m => m.id === memberId);
-        if (idx === -1) return { success: false, error: "Miembro no encontrado" };
-
-        const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
-        if (swapIdx < 0 || swapIdx >= members.length) return { success: true }; // already at edge
-
-        // Swap displayOrder values
-        const currentOrder = members[idx].displayOrder;
-        const swapOrder = members[swapIdx].displayOrder;
-
-        await prisma.$transaction([
-            prisma.user.update({ where: { id: members[idx].id }, data: { displayOrder: swapOrder } }),
-            prisma.user.update({ where: { id: members[swapIdx].id }, data: { displayOrder: currentOrder } }),
-        ]);
+        const updates = orderedIds.map((id, index) =>
+            prisma.user.update({ where: { id }, data: { displayOrder: index } })
+        );
+        await prisma.$transaction(updates);
 
         revalidatePath('/family');
         revalidatePath('/tasks/today');
