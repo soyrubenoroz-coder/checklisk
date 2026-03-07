@@ -2,40 +2,118 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
 
 export async function getFamilyMembers() {
     try {
         const members = await prisma.user.findMany({
-            orderBy: { role: 'asc' } // ADMIN first, then MEMBER
+            orderBy: { displayOrder: 'asc' }
         });
-        return members;
+        return members.map(m => ({
+            id: m.id,
+            name: m.name,
+            email: m.email,
+            role: m.role,
+            gender: m.gender || 'male',
+            avatarUrl: m.avatarUrl,
+            displayOrder: m.displayOrder,
+            hasPassword: !!m.password,
+        }));
     } catch (error) {
-        console.error("Error fetching family members:", error);
         return [];
     }
 }
 
-export async function addFamilyMember(data: { name: string, email: string, role: string }) {
+export async function addFamilyMember(data: {
+    name: string;
+    email: string;
+    role: string;
+    gender: string;
+    password?: string;
+}) {
     try {
-        const { name, email, role } = data;
+        const { name, email, role, gender, password } = data;
 
-        // Simulate user creation without password for simplified members
-        // In production, you might generate a temporary password or invite link
+        // Get max order
+        const maxOrder = await prisma.user.aggregate({ _max: { displayOrder: true } });
+        const nextOrder = (maxOrder._max.displayOrder ?? -1) + 1;
+
+        const avatarSeed = name.trim();
+        const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
+
         const newMember = await prisma.user.create({
             data: {
                 name,
-                email: email || `${name.toLowerCase().trim()}@familia.com`,
+                email: email || `${name.toLowerCase().replace(/\s+/g, '')}@familia.com`,
                 role,
-                avatarUrl: `https://api.dicebear.com/7.x/notionists/svg?seed=${name.trim()}`,
-                // Note: Password intentionally left null or a default temp hash if required by schema
+                gender,
+                password: hashedPassword,
+                avatarUrl: `https://api.dicebear.com/7.x/notionists/svg?seed=${avatarSeed}`,
+                displayOrder: nextOrder,
             }
         });
 
         revalidatePath('/family');
+        revalidatePath('/tasks/today');
         return { success: true, member: newMember };
-    } catch (error) {
-        console.error("Error creating family member:", error);
-        return { success: false, error: "Failed to create member" };
+    } catch (error: any) {
+        return { success: false, error: error.message || "Error al crear miembro" };
+    }
+}
+
+export async function updateFamilyMember(data: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    gender: string;
+    password?: string;
+}) {
+    try {
+        const { id, name, email, role, gender, password } = data;
+
+        const updateData: any = { name, email, role, gender };
+
+        if (password && password.length > 0) {
+            updateData.password = await bcrypt.hash(password, 10);
+        }
+
+        await prisma.user.update({
+            where: { id },
+            data: updateData,
+        });
+
+        revalidatePath('/family');
+        revalidatePath('/tasks/today');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message || "Error al actualizar" };
+    }
+}
+
+export async function reorderMember(memberId: string, direction: 'up' | 'down') {
+    try {
+        const members = await prisma.user.findMany({ orderBy: { displayOrder: 'asc' } });
+        const idx = members.findIndex(m => m.id === memberId);
+        if (idx === -1) return { success: false, error: "Miembro no encontrado" };
+
+        const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+        if (swapIdx < 0 || swapIdx >= members.length) return { success: true }; // already at edge
+
+        // Swap displayOrder values
+        const currentOrder = members[idx].displayOrder;
+        const swapOrder = members[swapIdx].displayOrder;
+
+        await prisma.$transaction([
+            prisma.user.update({ where: { id: members[idx].id }, data: { displayOrder: swapOrder } }),
+            prisma.user.update({ where: { id: members[swapIdx].id }, data: { displayOrder: currentOrder } }),
+        ]);
+
+        revalidatePath('/family');
+        revalidatePath('/tasks/today');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message || "Error al reordenar" };
     }
 }
 
@@ -45,9 +123,9 @@ export async function deleteFamilyMember(memberId: string) {
             where: { id: memberId }
         });
         revalidatePath('/family');
+        revalidatePath('/tasks/today');
         return { success: true };
     } catch (error) {
-        console.error("Error deleting member:", error);
         return { success: false, error: "No se pudo borrar el miembro" };
     }
 }
@@ -58,13 +136,10 @@ export async function getFamilyStats() {
         const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
         const dayOfWeek = now.getDay();
 
-        // 1. Get today's progress for ALL members
         const allAssignments = await prisma.taskAssignment.findMany({
             include: {
                 task: true,
-                logs: {
-                    where: { date: todayStr }
-                }
+                logs: { where: { date: todayStr } }
             }
         });
 
@@ -83,36 +158,20 @@ export async function getFamilyStats() {
         const completedToday = validToday.filter((a: any) => a.logs.length > 0 && a.logs[0].status === "COMPLETED").length;
         const progressPercent = totalToday > 0 ? Math.round((completedToday / totalToday) * 100) : 0;
 
-        // 2. Weekly computations (Last 7 days)
         const sevenDaysAgoDate = new Date();
         sevenDaysAgoDate.setDate(sevenDaysAgoDate.getDate() - 7);
         const sevenDaysAgoStr = `${sevenDaysAgoDate.getFullYear()}-${String(sevenDaysAgoDate.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysAgoDate.getDate()).padStart(2, '0')}`;
 
         const weeklyLogs = await prisma.taskLog.findMany({
-            where: {
-                date: {
-                    gte: sevenDaysAgoStr
-                },
-                status: "COMPLETED"
-            }
+            where: { date: { gte: sevenDaysAgoStr }, status: "COMPLETED" }
         });
 
         const totalWeeklyCompleted = weeklyLogs.length;
-
-        // Simple Streak Calculation (how many distinct days in the last 7 days were logged)
         const distinctDays = new Set(weeklyLogs.map((log: any) => log.date));
         const currentStreak = distinctDays.size;
 
-        return {
-            progressPercent,
-            currentStreak,
-            totalWeeklyCompleted
-        };
+        return { progressPercent, currentStreak, totalWeeklyCompleted };
     } catch (err) {
-        return {
-            progressPercent: 0,
-            currentStreak: 0,
-            totalWeeklyCompleted: 0
-        };
+        return { progressPercent: 0, currentStreak: 0, totalWeeklyCompleted: 0 };
     }
 }

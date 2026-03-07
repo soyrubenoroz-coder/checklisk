@@ -4,13 +4,12 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { getFamilyMembers } from "@/app/actions/family";
 import { getTasksForMember, toggleTaskComplete, deleteTask } from "@/app/actions/tasks";
-import { User } from "@prisma/client";
 
 export default function TodayTasksPage() {
     const { data: session } = useSession();
 
     // DB Data state
-    const [members, setMembers] = useState<User[]>([]);
+    const [members, setMembers] = useState<any[]>([]);
     const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
     const [tasks, setTasks] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);

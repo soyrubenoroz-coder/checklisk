@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getFamilyMembers } from "@/app/actions/family";
 import { createTask } from "@/app/actions/tasks";
-import { User } from "@prisma/client";
 
 export default function CreateTaskPage() {
     const router = useRouter();
@@ -17,7 +16,7 @@ export default function CreateTaskPage() {
     const [daysOfWeek, setDaysOfWeek] = useState<number[]>([]);
 
     // DB Data state
-    const [members, setMembers] = useState<User[]>([]);
+    const [members, setMembers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
