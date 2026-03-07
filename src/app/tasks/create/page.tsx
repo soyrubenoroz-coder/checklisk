@@ -10,7 +10,7 @@ export default function CreateTaskPage() {
     const [taskName, setTaskName] = useState("");
     const [duration, setDuration] = useState("");
     const [assignedTo, setAssignedTo] = useState<string[]>([]); // Will store User IDs
-    const [category, setCategory] = useState("Chores");
+    const [category, setCategory] = useState("Domésticas");
     const [isPerpetual, setIsPerpetual] = useState(false);
     const [endDate, setEndDate] = useState("");
     const [daysOfWeek, setDaysOfWeek] = useState<number[]>([]);
@@ -220,7 +220,7 @@ export default function CreateTaskPage() {
                 <div className="space-y-3">
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">Categoría</label>
                     <div className="flex flex-wrap gap-2">
-                        {['Chores', 'Homework', 'Personal'].map((cat) => (
+                        {['Domésticas', 'Escolares', 'Personales'].map((cat) => (
                             <button
                                 key={cat}
                                 onClick={() => setCategory(cat)}
