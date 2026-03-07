@@ -205,7 +205,7 @@ export default function CreateTaskPage() {
 
                     {!isPerpetual && (
                         <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
-                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1 mb-2">Fecha límite</label>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1 mb-2">Activa hasta...</label>
                             <input
                                 type="date"
                                 value={endDate}
