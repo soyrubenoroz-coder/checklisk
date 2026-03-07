@@ -111,13 +111,21 @@ export async function createTask(data: {
         const { title, category, durationMinutes, isPerpetual, endDate, daysOfWeek, assignedToIds } = data;
 
         // 1. Create the base Task
+        let parsedEndDate = null;
+        if (!isPerpetual && endDate && endDate.trim() !== "") {
+            const d = new Date(endDate);
+            if (!isNaN(d.getTime())) {
+                parsedEndDate = d;
+            }
+        }
+
         const task = await prisma.task.create({
             data: {
                 title,
                 category,
                 durationMinutes,
                 isPerpetual,
-                endDate: endDate ? new Date(endDate) : null,
+                endDate: parsedEndDate,
             }
         });
 
@@ -139,9 +147,9 @@ export async function createTask(data: {
         revalidatePath('/tasks/today');
 
         return { success: true, task };
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error creating task:", error);
-        return { success: false, error: "Failed to create task" };
+        return { success: false, error: error.message || "Failed to create task" };
     }
 }
 

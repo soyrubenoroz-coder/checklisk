@@ -76,7 +76,7 @@ export default function CreateTaskPage() {
         });
 
         if (result.success) {
-            router.push("/dashboard");
+            router.push("/tasks/today");
         } else {
             alert("Error al crear la tarea.");
             setIsSubmitting(false);
@@ -153,7 +153,11 @@ export default function CreateTaskPage() {
                                     >
                                         <div className={`relative p-1 rounded-full border-2 transition-all ${selected ? 'border-primary bg-white dark:bg-slate-800' : 'border-transparent hover:border-slate-200 dark:hover:border-slate-700'}`}>
                                             <div className="w-12 h-12 rounded-full bg-slate-200 overflow-hidden flex items-center justify-center">
-                                                <img src={member.avatarUrl || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.name}`} alt={member.name || "User"} className="w-full h-full object-cover" />
+                                                {member.avatarUrl ? (
+                                                    <img src={member.avatarUrl} alt={member.name || "User"} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-2xl">{member.gender === 'female' ? '👩' : member.gender === 'girl' ? '👧' : member.gender === 'boy' ? '👦' : '👨'}</span>
+                                                )}
                                             </div>
                                             {selected && (
                                                 <div className="absolute -bottom-1 -right-1 bg-primary text-white text-[10px] rounded-full p-0.5 border-2 border-white dark:border-slate-900">
@@ -205,7 +209,7 @@ export default function CreateTaskPage() {
 
                     {!isPerpetual && (
                         <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
-                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1 mb-2">Activa hasta...</label>
+                            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1 mb-2">Se repite hasta</label>
                             <input
                                 type="date"
                                 value={endDate}

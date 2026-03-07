@@ -119,7 +119,13 @@ export default function TodayTasksPage() {
                                 : 'bg-transparent hover:bg-slate-50 border-transparent opacity-60 hover:opacity-100'
                                 }`}
                         >
-                            <img src={member.avatarUrl || `https://api.dicebear.com/7.x/notionists/svg?seed=${member.name}`} alt={member.name || ''} className="w-12 h-12 rounded-full border border-slate-200 dark:border-slate-800 bg-white" />
+                            {member.avatarUrl ? (
+                                <img src={member.avatarUrl} alt={member.name || ''} className="w-12 h-12 rounded-full border border-slate-200 dark:border-slate-800 bg-white object-cover" />
+                            ) : (
+                                <div className="w-12 h-12 rounded-full border border-slate-200 dark:border-slate-800 bg-primary/10 flex items-center justify-center">
+                                    <span className="text-2xl">{member.gender === 'female' ? '👩' : member.gender === 'girl' ? '👧' : member.gender === 'boy' ? '👦' : '👨'}</span>
+                                </div>
+                            )}
                             <span className={`text-[10px] font-bold ${selectedMemberId === member.id ? 'text-primary' : 'text-slate-500'}`}>
                                 {member.name}
                             </span>

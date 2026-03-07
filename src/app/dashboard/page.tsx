@@ -55,11 +55,17 @@ export default function DashboardPage() {
                 <div className="bg-primary/10 dark:bg-primary/5 rounded-xl p-6 mb-6 border border-primary/20">
                     <div className="flex items-center gap-4">
                         <div className="relative">
-                            <img
-                                className="size-20 rounded-full bg-cover bg-center border-4 border-white dark:border-slate-800 shadow-md bg-slate-200"
-                                src={(session?.user as any)?.avatarUrl || `https://api.dicebear.com/7.x/notionists/svg?seed=${session?.user?.name || 'User'}`}
-                                alt="Avatar"
-                            />
+                            {(session?.user as any)?.avatarUrl ? (
+                                <img
+                                    className="size-20 rounded-full bg-cover bg-center border-4 border-white dark:border-slate-800 shadow-md bg-slate-200 object-cover"
+                                    src={(session?.user as any)?.avatarUrl}
+                                    alt="Avatar"
+                                />
+                            ) : (
+                                <div className="size-20 rounded-full border-4 border-white dark:border-slate-800 shadow-md bg-primary/10 flex items-center justify-center">
+                                    <span className="text-4xl">👤</span>
+                                </div>
+                            )}
                             <div className="absolute bottom-0 right-0 size-6 bg-primary rounded-full border-2 border-white dark:border-slate-800 flex items-center justify-center">
                                 <span className="material-symbols-outlined text-[14px] text-white font-bold">check</span>
                             </div>
