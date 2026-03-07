@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { useTheme } from "./ThemeProvider";
 
 export default function BottomNav() {
     const pathname = usePathname();
+    const { theme, toggleTheme } = useTheme();
 
     if (pathname === '/login') return null;
 
@@ -27,11 +28,11 @@ export default function BottomNav() {
                     <span className="text-[10px] font-medium tracking-wider">Familia</span>
                 </Link>
                 <button
-                    onClick={() => signOut({ callbackUrl: '/login' })}
-                    className="flex flex-col items-center gap-1 text-slate-400 hover:text-red-500 transition-colors"
+                    onClick={toggleTheme}
+                    className="flex flex-col items-center gap-1 text-slate-400 hover:text-primary transition-colors"
                 >
-                    <span className="material-symbols-outlined">logout</span>
-                    <span className="text-[10px] font-medium tracking-wider">Salir</span>
+                    <span className="material-symbols-outlined">{theme === 'dark' ? 'light_mode' : 'dark_mode'}</span>
+                    <span className="text-[10px] font-medium tracking-wider">{theme === 'dark' ? 'Claro' : 'Oscuro'}</span>
                 </button>
             </div>
         </nav>

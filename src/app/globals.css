@@ -1,12 +1,14 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-primary: #47eb99;
   --color-background-light: #f6f8f7;
   --color-background-dark: #112119;
-  
+
   --font-display: var(--font-plus-jakarta-sans), "sans-serif";
-  
+
   --radius-DEFAULT: 0.5rem;
   --radius-lg: 1rem;
   --radius-xl: 1.5rem;
