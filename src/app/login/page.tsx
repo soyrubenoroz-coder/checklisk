@@ -8,18 +8,22 @@ export default function LoginPage() {
     const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
+        setIsLoading(true);
 
-        // Using credentials provider
         const result = await signIn("credentials", {
             email,
             password,
             redirect: false,
         });
+
+        setIsLoading(false);
 
         if (result?.error) {
             setError("Usuario o contraseña incorrectos");
@@ -30,107 +34,105 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="flex flex-1 items-center justify-center p-4">
-            <div className="relative flex h-auto w-full max-w-[480px] flex-col bg-white dark:bg-slate-900 rounded-xl overflow-hidden shadow-xl border border-primary/10">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-white to-primary/5 dark:from-slate-950 dark:to-slate-900">
+            <div className="w-full max-w-[420px] flex flex-col">
 
-                {/* Top Navigation Area */}
-                <div className="flex items-center bg-white dark:bg-slate-900 p-4 pb-2 justify-between">
-                    <div className="text-slate-900 dark:text-slate-100 flex size-12 shrink-0 items-center cursor-pointer">
-                        <span className="material-symbols-outlined">arrow_back</span>
+                {/* Logo / House Icon */}
+                <div className="flex flex-col items-center mb-8">
+                    <div className="w-32 h-32 rounded-3xl bg-primary/10 flex items-center justify-center mb-6 shadow-lg shadow-primary/10">
+                        <span
+                            className="material-symbols-outlined text-primary"
+                            style={{ fontSize: '72px', fontVariationSettings: "'FILL' 1" }}
+                        >
+                            home
+                        </span>
                     </div>
-                    <h2 className="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-12">
-                        Bienvenido a Casa
-                    </h2>
-                </div>
-
-                {/* Illustration/Hero Area */}
-                <div className="flex w-full grow bg-white dark:bg-slate-900 p-6">
-                    <div className="w-full aspect-[4/3] rounded-xl flex items-center justify-center bg-primary/10 overflow-hidden">
-                        <div className="flex flex-col items-center gap-4">
-                            <span className="material-symbols-outlined text-primary text-8xl" style={{ fontVariationSettings: "'FILL' 1" }}>home</span>
-                            <div className="w-24 h-1 bg-primary/20 rounded-full"></div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Greeting Text */}
-                <div className="px-6 text-center">
-                    <h1 className="text-slate-900 dark:text-slate-100 tracking-tight text-3xl font-bold leading-tight pb-2">
+                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
                         ¡Hola de nuevo!
                     </h1>
-                    <p className="text-slate-600 dark:text-slate-400 text-base font-normal leading-normal">
+                    <p className="text-slate-500 dark:text-slate-400 mt-2 text-center">
                         Inicia sesión para cuidar de tu familia y hogar
                     </p>
                 </div>
 
                 {/* Login Form */}
-                <form onSubmit={handleLogin} className="flex flex-col gap-4 px-6 py-8">
-                    {error && <p className="text-red-500 text-sm font-semibold text-center">{error}</p>}
-                    <label className="flex flex-col w-full">
-                        <p className="text-slate-900 dark:text-slate-100 text-sm font-semibold leading-normal pb-2">
-                            Correo electrónico o usuario
-                        </p>
-                        <div className="relative">
-                            <input
-                                className="form-input flex w-full rounded-xl text-slate-900 dark:text-slate-100 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-14 placeholder:text-slate-400 p-[15px] pl-12 text-base font-normal leading-normal"
-                                placeholder="ejemplo@familia.com"
-                                type="text"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                required
-                            />
-                            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">mail</span>
-                        </div>
-                    </label>
-                    <label className="flex flex-col w-full">
-                        <div className="flex justify-between items-center pb-2">
-                            <p className="text-slate-900 dark:text-slate-100 text-sm font-semibold leading-normal">Contraseña</p>
-                            <a className="text-primary text-sm font-medium hover:underline" href="#">¿Olvidaste tu contraseña?</a>
-                        </div>
-                        <div className="relative">
-                            <input
-                                className="form-input flex w-full rounded-xl text-slate-900 dark:text-slate-100 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 h-14 placeholder:text-slate-400 p-[15px] pl-12 text-base font-normal leading-normal"
-                                placeholder="••••••••"
-                                type="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                required
-                            />
-                            <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">lock</span>
-                        </div>
-                    </label>
+                <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 p-6">
+                    <form onSubmit={handleLogin} className="flex flex-col gap-5">
+                        {error && (
+                            <div className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm font-semibold text-center py-3 px-4 rounded-xl border border-red-100 dark:border-red-800">
+                                {error}
+                            </div>
+                        )}
 
-                    {/* Login Button */}
-                    <button
-                        type="submit"
-                        className="w-full h-14 bg-primary text-slate-900 font-bold text-lg rounded-xl shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity mt-2 flex items-center justify-center gap-2"
-                    >
-                        <span>Ingresar</span>
-                        <span className="material-symbols-outlined">login</span>
-                    </button>
+                        {/* Email */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                Correo electrónico o usuario
+                            </label>
+                            <div className="relative">
+                                <input
+                                    className="w-full h-14 pl-12 pr-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-base"
+                                    placeholder="ejemplo@familia.com"
+                                    type="text"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                    autoComplete="email"
+                                />
+                                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl">mail</span>
+                            </div>
+                        </div>
 
-                    {/* Social Login / Secondary Option */}
-                    <div className="relative my-4">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
+                        {/* Password */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                Contraseña
+                            </label>
+                            <div className="relative">
+                                <input
+                                    className="w-full h-14 pl-12 pr-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all text-base"
+                                    placeholder="••••••••"
+                                    type={showPassword ? "text" : "password"}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                    autoComplete="current-password"
+                                />
+                                <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl">lock</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                                >
+                                    <span className="material-symbols-outlined text-xl">
+                                        {showPassword ? 'visibility_off' : 'visibility'}
+                                    </span>
+                                </button>
+                            </div>
                         </div>
-                        <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-white dark:bg-slate-900 text-slate-500">O también puedes</span>
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        className="w-full h-14 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-semibold text-base rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
-                    >
-                        <span className="material-symbols-outlined">person_add</span>
-                        <span>Crear una cuenta nueva</span>
-                    </button>
-                </form>
+
+                        {/* Login Button */}
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full h-14 bg-primary text-slate-900 font-bold text-lg rounded-xl shadow-lg shadow-primary/30 hover:shadow-primary/50 hover:brightness-105 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98]"
+                        >
+                            {isLoading ? (
+                                <span className="animate-spin material-symbols-outlined">progress_activity</span>
+                            ) : (
+                                <>
+                                    <span>Ingresar</span>
+                                    <span className="material-symbols-outlined">arrow_forward</span>
+                                </>
+                            )}
+                        </button>
+                    </form>
+                </div>
 
                 {/* Footer */}
-                <div className="pb-8 px-6 text-center">
-                    <p className="text-slate-400 text-xs">Al continuar, aceptas nuestros Términos de Servicio y Política de Privacidad.</p>
-                </div>
+                <p className="text-slate-400 text-xs text-center mt-6">
+                    Al continuar, aceptas nuestros Términos de Servicio y Política de Privacidad.
+                </p>
             </div>
         </div>
     );
