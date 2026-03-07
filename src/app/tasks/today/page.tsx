@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { getFamilyMembers } from "@/app/actions/family";
 import { getTasksForMember, toggleTaskComplete, deleteTask } from "@/app/actions/tasks";
 
 export default function TodayTasksPage() {
+    const router = useRouter();
     const { data: session } = useSession();
 
     // DB Data state
@@ -102,10 +104,28 @@ export default function TodayTasksPage() {
         <div className="relative flex min-h-screen w-full flex-col max-w-md mx-auto bg-white dark:bg-background-dark shadow-xl overflow-hidden pb-24">
             {/* Header */}
             <header className="flex flex-col bg-white dark:bg-background-dark pt-4 pb-2 sticky top-0 z-10 border-b border-primary/5">
-                <div className="flex items-center justify-center px-4 mb-3">
-                    <h2 className="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-tight text-center capitalize">
-                        {selectedDateStr === todayStr ? 'Tareas de Hoy' : new Date(Number(selectedDateStr.split('-')[0]), Number(selectedDateStr.split('-')[1]) - 1, Number(selectedDateStr.split('-')[2])).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })}
-                    </h2>
+                <div className="flex items-center justify-between px-6 mb-3">
+                    <div className="flex flex-col">
+                        <h2 className="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-tight capitalize">
+                            {selectedDateStr === todayStr ? 'Tareas de Hoy' : new Date(Number(selectedDateStr.split('-')[0]), Number(selectedDateStr.split('-')[1]) - 1, Number(selectedDateStr.split('-')[2])).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })}
+                        </h2>
+                        {selectedDateStr !== todayStr && (
+                            <button
+                                onClick={() => setSelectedDateStr(todayStr)}
+                                className="text-[10px] font-bold text-primary flex items-center gap-1 mt-0.5 uppercase tracking-wider"
+                            >
+                                <span className="material-symbols-outlined text-[12px]">today</span>
+                                Volver a Hoy
+                            </button>
+                        )}
+                    </div>
+                    <button
+                        onClick={() => router.push('/tasks/manage')}
+                        className="p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-400 hover:bg-primary/20 hover:text-primary transition-all"
+                        title="Administrar series"
+                    >
+                        <span className="material-symbols-outlined text-[20px]">inventory_2</span>
+                    </button>
                 </div>
 
                 {/* Member Selector Slider */}

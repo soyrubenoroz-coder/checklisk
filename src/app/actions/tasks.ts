@@ -35,9 +35,9 @@ export async function getTasksForMember(memberId: string, dateStr: string) {
 
         const task = assignment.task;
         if (!task.isPerpetual && task.endDate) {
-            const endDate = new Date(task.endDate);
-            endDate.setHours(23, 59, 59, 999);
-            if (date > endDate) return false;
+            // Compare date strings YYYY-MM-DD to avoid timezone shifts
+            const taskEndStr = task.endDate.toISOString().split('T')[0];
+            if (dateStr > taskEndStr) return false;
         }
 
         return true;
@@ -113,7 +113,8 @@ export async function createTask(data: {
         // 1. Create the base Task
         let parsedEndDate = null;
         if (!isPerpetual && endDate && endDate.trim() !== "") {
-            const d = new Date(endDate);
+            // Save as noon UTC to ensure consistent ISO date string retrieval
+            const d = new Date(`${endDate}T12:00:00Z`);
             if (!isNaN(d.getTime())) {
                 parsedEndDate = d;
             }
@@ -165,5 +166,46 @@ export async function deleteTask(taskId: string) {
     } catch (error) {
         console.error("Error deleting task:", error);
         return { success: false, error: "No se pudo borrar la tarea" };
+    }
+}
+export async function getAllTasks() {
+    try {
+        const tasks = await prisma.task.findMany({
+            include: {
+                assignments: {
+                    include: {
+                        assignedTo: {
+                            select: {
+                                id: true,
+                                name: true,
+                                avatarUrl: true,
+                                gender: true
+                            }
+                        }
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        return tasks.map(t => ({
+            id: t.id,
+            title: t.title,
+            category: t.category,
+            duration: t.durationMinutes,
+            isPerpetual: t.isPerpetual,
+            endDate: t.endDate ? t.endDate.toISOString().split('T')[0] : null,
+            assignments: t.assignments.map(a => ({
+                id: a.id,
+                userId: a.assignedTo.id,
+                userName: a.assignedTo.name,
+                userAvatar: a.assignedTo.avatarUrl,
+                userGender: a.assignedTo.gender,
+                days: JSON.parse(a.daysOfWeek) as number[]
+            }))
+        }));
+    } catch (error) {
+        console.error("Error fetching all tasks:", error);
+        return [];
     }
 }
