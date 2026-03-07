@@ -30,9 +30,10 @@ export async function addFamilyMember(data: {
     role: string;
     gender: string;
     password?: string;
+    avatarUrl?: string;
 }) {
     try {
-        const { name, email, role, gender, password } = data;
+        const { name, email, role, gender, password, avatarUrl } = data;
 
         // Get max order
         const maxOrder = await prisma.user.aggregate({ _max: { displayOrder: true } });
@@ -47,6 +48,7 @@ export async function addFamilyMember(data: {
                 role,
                 gender,
                 password: hashedPassword,
+                avatarUrl: avatarUrl || null,
                 displayOrder: nextOrder,
             }
         });
@@ -66,14 +68,20 @@ export async function updateFamilyMember(data: {
     role: string;
     gender: string;
     password?: string;
+    avatarUrl?: string | null;
 }) {
     try {
-        const { id, name, email, role, gender, password } = data;
+        const { id, name, email, role, gender, password, avatarUrl } = data;
 
         const updateData: any = { name, email, role, gender };
 
         if (password && password.length > 0) {
             updateData.password = await bcrypt.hash(password, 10);
+        }
+
+        // Only update avatarUrl if explicitly provided (including null to clear)
+        if (avatarUrl !== undefined) {
+            updateData.avatarUrl = avatarUrl;
         }
 
         await prisma.user.update({

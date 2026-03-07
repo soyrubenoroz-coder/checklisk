@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { getFamilyMembers, addFamilyMember, updateFamilyMember, deleteFamilyMember, reorderMembers, updateAvatar, getFamilyStats } from "@/app/actions/family";
+import { getFamilyMembers, addFamilyMember, updateFamilyMember, deleteFamilyMember, reorderMembers, getFamilyStats } from "@/app/actions/family";
 
 const AVATAR_PRESETS = [
     { id: 'male', label: 'Papá', icon: '👨' },
@@ -89,21 +89,15 @@ export default function FamilyHubPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         let result;
+        const formData = { ...form, avatarUrl: photoPreview || undefined };
         if (editingMember) {
-            result = await updateFamilyMember({ id: editingMember.id, ...form });
-            // Save photo if changed
-            if (result.success && photoPreview && photoPreview !== editingMember.avatarUrl) {
-                await updateAvatar(editingMember.id, photoPreview);
-            }
+            result = await updateFamilyMember({ id: editingMember.id, ...formData });
         } else {
-            result = await addFamilyMember(form);
-            // Save photo for new member
-            if (result.success && photoPreview && result.member) {
-                await updateAvatar(result.member.id, photoPreview);
-            }
+            result = await addFamilyMember(formData);
         }
         if (result.success) {
             setIsModalOpen(false);
+            setPhotoPreview(null);
             loadData();
         } else {
             alert("Error: " + result.error);
@@ -338,7 +332,7 @@ export default function FamilyHubPage() {
                         </div>
 
                         {/* Modal Body - scrollable */}
-                        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
+                        <form onSubmit={handleSubmit} className="p-5 pb-8 space-y-4 overflow-y-auto flex-1">
                             {/* Avatar + Photo Upload */}
                             <div className="flex flex-col items-center gap-2">
                                 <div className="relative">
