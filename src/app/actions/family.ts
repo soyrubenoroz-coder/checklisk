@@ -117,6 +117,19 @@ export async function deleteFamilyMember(memberId: string) {
     }
 }
 
+export async function updateAvatar(memberId: string, avatarUrl: string) {
+    try {
+        await prisma.user.update({
+            where: { id: memberId },
+            data: { avatarUrl }
+        });
+        revalidatePath('/family');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message || "Error al actualizar avatar" };
+    }
+}
+
 export async function getFamilyStats() {
     try {
         const now = new Date();

@@ -2,29 +2,17 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { getFamilyMembers, addFamilyMember, updateFamilyMember, deleteFamilyMember, reorderMembers, getFamilyStats } from "@/app/actions/family";
+import { getFamilyMembers, addFamilyMember, updateFamilyMember, deleteFamilyMember, reorderMembers, updateAvatar, getFamilyStats } from "@/app/actions/family";
 
 const AVATAR_PRESETS = [
-    { id: 'male', label: 'Hombre', icon: '👨', seed: 'ManAdult' },
-    { id: 'female', label: 'Mujer', icon: '👩', seed: 'WomanAdult' },
-    { id: 'boy', label: 'Niño', icon: '👦', seed: 'BoyChild' },
-    { id: 'girl', label: 'Niña', icon: '👧', seed: 'GirlChild' },
+    { id: 'male', label: 'Papá', icon: '👨' },
+    { id: 'female', label: 'Mamá', icon: '👩' },
+    { id: 'boy', label: 'Niño', icon: '👦' },
+    { id: 'girl', label: 'Niña', icon: '👧' },
 ];
 
-function getAvatarUrl(name: string, gender: string) {
-    const safeName = encodeURIComponent(name?.trim() || 'User');
-    // Use different DiceBear styles per gender for clear visual distinction
-    switch (gender) {
-        case 'female':
-            return `https://api.dicebear.com/7.x/avataaars/svg?seed=${safeName}-woman&top=longHair&accessories=prescription02&clotheColor=ff488e&hairColor=4a312c`;
-        case 'girl':
-            return `https://api.dicebear.com/7.x/avataaars/svg?seed=${safeName}-girl&top=longHair&accessories=round&clotheColor=ff6b9d&hairColor=2c1b18`;
-        case 'boy':
-            return `https://api.dicebear.com/7.x/avataaars/svg?seed=${safeName}-boy&top=shortCurly&clotheColor=3c4f76&facialHair=blank&hairColor=724133`;
-        case 'male':
-        default:
-            return `https://api.dicebear.com/7.x/avataaars/svg?seed=${safeName}-man&top=shortFlat&facialHair=beardLight&clotheColor=262e33&hairColor=2c1b18`;
-    }
+function getEmojiForGender(gender: string) {
+    return AVATAR_PRESETS.find(p => p.id === gender)?.icon || '👤';
 }
 
 export default function FamilyHubPage() {
@@ -32,9 +20,11 @@ export default function FamilyHubPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingMember, setEditingMember] = useState<any>(null);
     const [form, setForm] = useState({ name: '', email: '', role: 'MEMBER', gender: 'male', password: '' });
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [members, setMembers] = useState<any[]>([]);
     const [familyStats, setFamilyStats] = useState({ progressPercent: 0, currentStreak: 0, totalWeeklyCompleted: 0 });
     const [isLoading, setIsLoading] = useState(true);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Drag state
     const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -55,6 +45,7 @@ export default function FamilyHubPage() {
     const openAddModal = () => {
         setEditingMember(null);
         setForm({ name: '', email: '', role: 'MEMBER', gender: 'male', password: '' });
+        setPhotoPreview(null);
         setIsModalOpen(true);
     };
 
@@ -67,7 +58,32 @@ export default function FamilyHubPage() {
             gender: member.gender || 'male',
             password: '',
         });
+        setPhotoPreview(member.avatarUrl || null);
         setIsModalOpen(true);
+    };
+
+    const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        // Resize to max 200px for storage efficiency
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const maxSize = 200;
+                let w = img.width, h = img.height;
+                if (w > h) { h = (h / w) * maxSize; w = maxSize; }
+                else { w = (w / h) * maxSize; h = maxSize; }
+                canvas.width = w;
+                canvas.height = h;
+                canvas.getContext('2d')?.drawImage(img, 0, 0, w, h);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                setPhotoPreview(dataUrl);
+            };
+            img.src = ev.target?.result as string;
+        };
+        reader.readAsDataURL(file);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -75,8 +91,16 @@ export default function FamilyHubPage() {
         let result;
         if (editingMember) {
             result = await updateFamilyMember({ id: editingMember.id, ...form });
+            // Save photo if changed
+            if (result.success && photoPreview && photoPreview !== editingMember.avatarUrl) {
+                await updateAvatar(editingMember.id, photoPreview);
+            }
         } else {
             result = await addFamilyMember(form);
+            // Save photo for new member
+            if (result.success && photoPreview && result.member) {
+                await updateAvatar(result.member.id, photoPreview);
+            }
         }
         if (result.success) {
             setIsModalOpen(false);
@@ -101,12 +125,10 @@ export default function FamilyHubPage() {
         dragItemRef.current = idx;
         setDragIdx(idx);
     };
-
     const handleDragEnter = (idx: number) => {
         dragOverRef.current = idx;
         setOverIdx(idx);
     };
-
     const handleDragEnd = async () => {
         const from = dragItemRef.current;
         const to = dragOverRef.current;
@@ -114,38 +136,26 @@ export default function FamilyHubPage() {
         setOverIdx(null);
         dragItemRef.current = null;
         dragOverRef.current = null;
-
         if (from === null || to === null || from === to) return;
-
-        // Reorder locally for instant feedback
         const reordered = [...members];
         const [moved] = reordered.splice(from, 1);
         reordered.splice(to, 0, moved);
         setMembers(reordered);
-
-        // Persist
-        const orderedIds = reordered.map(m => m.id);
-        await reorderMembers(orderedIds);
+        await reorderMembers(reordered.map(m => m.id));
     };
 
-    // --- Touch Drag (mobile) ---
-    const touchStartY = useRef(0);
+    // --- Touch Drag ---
     const touchIdx = useRef<number | null>(null);
     const memberRefs = useRef<(HTMLDivElement | null)[]>([]);
 
     const handleTouchStart = (idx: number, e: React.TouchEvent) => {
         if (isModalOpen) return;
         touchIdx.current = idx;
-        touchStartY.current = e.touches[0].clientY;
         setDragIdx(idx);
     };
-
     const handleTouchMove = (e: React.TouchEvent) => {
-        if (isModalOpen) return;
-        if (touchIdx.current === null) return;
+        if (isModalOpen || touchIdx.current === null) return;
         const currentY = e.touches[0].clientY;
-
-        // Find which member card the touch is over
         for (let i = 0; i < memberRefs.current.length; i++) {
             const el = memberRefs.current[i];
             if (el) {
@@ -158,7 +168,6 @@ export default function FamilyHubPage() {
             }
         }
     };
-
     const handleTouchEnd = async () => {
         const from = touchIdx.current;
         const to = dragOverRef.current;
@@ -166,16 +175,24 @@ export default function FamilyHubPage() {
         setOverIdx(null);
         touchIdx.current = null;
         dragOverRef.current = null;
-
         if (from === null || to === null || from === to) return;
-
         const reordered = [...members];
         const [moved] = reordered.splice(from, 1);
         reordered.splice(to, 0, moved);
         setMembers(reordered);
+        await reorderMembers(reordered.map(m => m.id));
+    };
 
-        const orderedIds = reordered.map(m => m.id);
-        await reorderMembers(orderedIds);
+    // --- Avatar display helper ---
+    const renderAvatar = (member: any, size: string = 'w-12 h-12') => {
+        if (member.avatarUrl) {
+            return <img src={member.avatarUrl} alt={member.name || ''} className={`${size} rounded-full object-cover bg-slate-100`} />;
+        }
+        return (
+            <div className={`${size} rounded-full bg-primary/10 flex items-center justify-center`}>
+                <span className="text-2xl">{getEmojiForGender(member.gender)}</span>
+            </div>
+        );
     };
 
     return (
@@ -219,7 +236,6 @@ export default function FamilyHubPage() {
                     </button>
                 </div>
 
-                {/* Drag hint */}
                 {members.length > 1 && (
                     <p className="text-xs text-slate-400 text-center -mt-2">
                         <span className="material-symbols-outlined text-xs align-middle">drag_indicator</span> Arrastra para reordenar
@@ -238,7 +254,6 @@ export default function FamilyHubPage() {
                         </div>
                     ) : (
                         members.map((member, idx) => {
-                            const preset = AVATAR_PRESETS.find(p => p.id === member.gender);
                             const isDragging = dragIdx === idx;
                             const isOver = overIdx === idx && dragIdx !== null && dragIdx !== idx;
                             return (
@@ -257,20 +272,12 @@ export default function FamilyHubPage() {
                                     `}
                                 >
                                     <div className="flex items-center gap-3">
-                                        {/* Drag Handle */}
                                         <div className="text-slate-300 dark:text-slate-600 shrink-0 touch-none">
                                             <span className="material-symbols-outlined text-xl">drag_indicator</span>
                                         </div>
-                                        {/* Avatar */}
-                                        <div className="relative shrink-0">
-                                            <img
-                                                src={getAvatarUrl(member.name, member.gender)}
-                                                alt={member.name || "User"}
-                                                className="w-12 h-12 rounded-full bg-slate-100"
-                                            />
-                                            <span className="absolute -bottom-1 -right-1 text-base">{preset?.icon || '👤'}</span>
+                                        <div className="shrink-0">
+                                            {renderAvatar(member)}
                                         </div>
-                                        {/* Info */}
                                         <div className="flex-1 min-w-0">
                                             <h4 className="font-bold text-slate-900 dark:text-slate-100 truncate">{member.name}</h4>
                                             <p className="text-xs text-slate-500 truncate">
@@ -278,7 +285,6 @@ export default function FamilyHubPage() {
                                                 {member.hasPassword && ' · Puede iniciar sesión'}
                                             </p>
                                         </div>
-                                        {/* Actions */}
                                         <div className="flex items-center gap-0.5 shrink-0">
                                             <button onClick={() => openEditModal(member)} className="text-slate-400 hover:text-blue-500 p-1.5">
                                                 <span className="material-symbols-outlined text-[20px]">edit</span>
@@ -316,29 +322,62 @@ export default function FamilyHubPage() {
 
             {/* Add/Edit Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center p-5 border-b border-slate-100 dark:border-slate-800">
+                <div
+                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+                    onClick={(e) => { if (e.target === e.currentTarget) setIsModalOpen(false); }}
+                >
+                    <div className="bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[85vh] flex flex-col">
+                        {/* Modal Header */}
+                        <div className="flex justify-between items-center p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
                             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
                                 {editingMember ? 'Editar Miembro' : 'Añadir Miembro'}
                             </h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600" type="button">
+                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 p-1" type="button">
                                 <span className="material-symbols-outlined">close</span>
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-                            {/* Avatar Preview */}
-                            <div className="flex justify-center">
-                                <img
-                                    src={getAvatarUrl(form.name || 'Nuevo', form.gender)}
-                                    className="w-20 h-20 rounded-full bg-slate-100 border-4 border-primary/20 shadow-md"
-                                    alt="Avatar preview"
+
+                        {/* Modal Body - scrollable */}
+                        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
+                            {/* Avatar + Photo Upload */}
+                            <div className="flex flex-col items-center gap-2">
+                                <div className="relative">
+                                    {photoPreview ? (
+                                        <img src={photoPreview} className="w-24 h-24 rounded-full object-cover border-4 border-primary/20 shadow-md bg-slate-100" alt="Avatar" />
+                                    ) : (
+                                        <div className="w-24 h-24 rounded-full bg-primary/10 border-4 border-primary/20 shadow-md flex items-center justify-center">
+                                            <span className="text-5xl">{getEmojiForGender(form.gender)}</span>
+                                        </div>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="absolute -bottom-1 -right-1 bg-primary text-slate-900 p-1.5 rounded-full shadow-md hover:bg-primary/80 transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-base">photo_camera</span>
+                                    </button>
+                                </div>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={handlePhotoSelect}
                                 />
+                                {photoPreview && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setPhotoPreview(null)}
+                                        className="text-xs text-red-500 hover:underline"
+                                    >
+                                        Quitar foto
+                                    </button>
+                                )}
                             </div>
 
-                            {/* Gender/Type Picker */}
+                            {/* Gender Picker (for default emoji if no photo) */}
                             <div className="space-y-1.5">
-                                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Tipo de Avatar</label>
+                                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Tipo</label>
                                 <div className="grid grid-cols-4 gap-2">
                                     {AVATAR_PRESETS.map(preset => (
                                         <button
@@ -384,7 +423,7 @@ export default function FamilyHubPage() {
                                 </div>
                             </div>
 
-                            {/* Email & Password */}
+                            {/* Email */}
                             <div className="space-y-1.5">
                                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                                     Correo {form.role === 'ADMIN' ? '(para iniciar sesión)' : '(opcional)'}
@@ -398,6 +437,7 @@ export default function FamilyHubPage() {
                                 />
                             </div>
 
+                            {/* Password */}
                             <div className="space-y-1.5">
                                 <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                                     Contraseña {editingMember ? '(dejar vacío para no cambiar)' : '(para iniciar sesión)'}
