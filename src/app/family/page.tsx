@@ -317,10 +317,10 @@ export default function FamilyHubPage() {
             {/* Add/Edit Modal */}
             {isModalOpen && (
                 <div
-                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+                    className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm"
                     onClick={(e) => { if (e.target === e.currentTarget) setIsModalOpen(false); }}
                 >
-                    <div className="bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[85vh] flex flex-col">
+                    <div className="bg-white dark:bg-slate-900 rounded-t-2xl sm:rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200 dark:border-slate-800 max-h-[90vh] flex flex-col">
                         {/* Modal Header */}
                         <div className="flex justify-between items-center p-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
                             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
