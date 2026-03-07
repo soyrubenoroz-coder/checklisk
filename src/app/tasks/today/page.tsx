@@ -23,6 +23,7 @@ export default function TodayTasksPage() {
     // Refs for scrolling
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const todayRef = useRef<HTMLButtonElement>(null);
+    const hasScrolledRef = useRef(false);
 
     const scrollToToday = () => {
         setSelectedDateStr(todayStr);
@@ -34,10 +35,18 @@ export default function TodayTasksPage() {
         }
     };
 
-    // Auto-scroll to today on mount
+    // Auto-scroll to today ONLY on mount (first time data is ready)
     useEffect(() => {
-        if (!isLoading && members.length > 0) {
-            setTimeout(scrollToToday, 100);
+        if (!isLoading && members.length > 0 && !hasScrolledRef.current) {
+            hasScrolledRef.current = true;
+            setTimeout(() => {
+                if (todayRef.current && scrollContainerRef.current) {
+                    const container = scrollContainerRef.current;
+                    const element = todayRef.current;
+                    const scrollLeft = element.offsetLeft - (container.offsetWidth / 2) + (element.offsetWidth / 2);
+                    container.scrollTo({ left: scrollLeft, behavior: 'auto' }); // auto on mount
+                }
+            }, 100);
         }
     }, [isLoading, members.length]);
 
