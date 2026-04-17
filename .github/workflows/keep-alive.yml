@@ -1,0 +1,24 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    - cron: '0 12 * * *' # Se ejecuta cada 24 horas a las 12:00 UTC
+  workflow_dispatch: # Permite ejecutarlo manualmente desde la pestaña Actions
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalando cliente de Postgres
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Realizando consulta de actividad en Supabase
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Error: La variable DATABASE_URL no está configurada en los Secrets de GitHub."
+            exit 1
+          fi
+          # Realizamos una consulta simple para mantener la base de datos activa
+          psql "$DATABASE_URL" -c "SELECT 1;"
